@@ -1,0 +1,46 @@
+from scapy.all import sniff, conf, get_if_list
+from scapy.layers.inet import IP, TCP, UDP
+from scapy.packet import Raw
+
+def packet_callback(packet):
+    if IP in packet:
+        src_ip = packet[IP].src
+        dst_ip = packet[IP].dst
+        
+        if TCP in packet:
+            proto_name = "TCP"
+            src_port = packet[TCP].sport
+            dst_port = packet[TCP].dport
+        elif UDP in packet:
+            proto_name = "UDP"
+            src_port = packet[UDP].sport
+            dst_port = packet[UDP].dport
+        else:
+            proto_name = "Other"
+            src_port = dst_port = "N/A"
+        
+        print(f"[+] Packet Captured: {src_ip}:{src_port} -> {dst_ip}:{dst_port} [{proto_name}]")
+        
+        if packet.haslayer(Raw):
+            print(f"Payload: {packet[Raw].load.decode(errors='ignore')}\n")
+
+def get_valid_iface():
+    available_ifaces = get_if_list()
+    if conf.iface and conf.iface in available_ifaces:
+        return conf.iface
+    
+    if not available_ifaces:
+        print("[!] No network interfaces available. Exiting.")
+        exit(1)
+    
+    print("Available network interfaces:")
+    for iface in available_ifaces:
+        print(f" - {iface}")
+    
+    default_iface = available_ifaces[0]
+    print(f"[+] Using default interface: {default_iface}")
+    return default_iface
+
+iface = get_valid_iface()
+print(f"Starting packet sniffer on interface: {iface}")
+sniff(prn=packet_callback, store=False, iface=iface)
